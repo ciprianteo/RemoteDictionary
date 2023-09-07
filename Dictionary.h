@@ -1,6 +1,7 @@
 #include <string>
 #include <iostream>
 #include <map>
+#include <mutex>
 #include <boost/archive/binary_iarchive.hpp>
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/asio/streambuf.hpp>
@@ -156,6 +157,7 @@ public:
 
 	Response set(const std::string& key, const std::string& value)
 	{
+		const std::lock_guard<std::mutex> lock(mutex);
 		auto res = dict.insert(std::make_pair(key, value));
 		if (res.second)
 		{
@@ -169,6 +171,7 @@ public:
 
 	Response get(const std::string& key)
 	{
+		const std::lock_guard<std::mutex> lock(mutex);
 		++getOperations;
 		auto res = dict.find(key);
 		if (res != dict.end())
@@ -184,6 +187,7 @@ public:
 
 	Response stats()
 	{
+		const std::lock_guard<std::mutex> lock(mutex);
 		std::string message = "Total Get operations: " + std::to_string(getOperations) + '\n';
 		message += "\tSuccessfull: " + std::to_string(getOperations - failedGet) + '\n';
 		message += "\tFailed: " + std::to_string(failedGet) + '\n';
@@ -192,7 +196,7 @@ public:
 	}
 
 private:
-
+	std::mutex mutex;
 	std::map<std::string, std::string> dict;
 	size_t getOperations = 0;
 	size_t failedGet = 0;

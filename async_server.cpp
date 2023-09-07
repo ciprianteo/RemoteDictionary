@@ -20,9 +20,9 @@ class tcp_connection
 public:
   typedef boost::shared_ptr<tcp_connection> pointer;
 
-  static pointer create(boost::asio::io_service& io_service)
+  static pointer create(boost::asio::io_service& io_service, std::shared_ptr<Dictionary> dict)
   {
-    return pointer(new tcp_connection(io_service));
+    return pointer(new tcp_connection(io_service, dict));
   }
 
   tcp::socket& socket()
@@ -41,8 +41,8 @@ public:
   //}
 
 private:
-  tcp_connection(boost::asio::io_service& io_service)
-    : socket_(io_service)
+  tcp_connection(boost::asio::io_service& io_service, std::shared_ptr<Dictionary> d)
+    : socket_(io_service), dict(d)
   {
   }
   
@@ -80,15 +80,21 @@ private:
 
     if(req.getType() == Request::type::SET)
     {
-      auto response = dict.set(req.getKey(), req.getValue());
+      auto response = dict->set(req.getKey(), req.getValue());
       response.save(writeBuf);
       std::cout<< response;
     }
-    else
+    else if (req.getType() == Request::type::GET)
     {
-      auto response = dict.get(req.getKey());
+      auto response = dict->get(req.getKey());
       response.save(writeBuf);
       std::cout<< response;
+    }
+    else if (req.getType() == Request::type::STATS)
+    {
+       auto response = dict->stats();
+       response.save(writeBuf);
+       std::cout << response;
     }
 
     boost::asio::async_write(socket_, writeBuf,
@@ -97,10 +103,12 @@ private:
                                          boost::asio::placeholders::bytes_transferred));
   }
 
+  friend class tcp_server;
+
   tcp::socket socket_;
   std::string m_message;
   boost::asio::streambuf readBuf, writeBuf;
-  Dictionary dict;
+  std::shared_ptr<Dictionary> dict;
 };
 
 class tcp_server
@@ -130,20 +138,22 @@ private:
     {
       std::cout<< error.message() << std::endl;
     }
-    start_accept(tcp_connection::create(service_));
+    start_accept(tcp_connection::create(service_, new_connection->dict));
   }
 
   tcp::acceptor acceptor_;
   boost::asio::io_service& service_;
+  
 };
 
 int main()
 {
   try
   {
+    std::shared_ptr<Dictionary> dict = std::make_shared<Dictionary>();
     boost::asio::io_service service;;
     tcp_connection::pointer new_connection =
-        tcp_connection::create(service);
+        tcp_connection::create(service, dict);
 
     tcp_server server(service, new_connection);
 
