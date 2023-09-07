@@ -106,6 +106,12 @@ private:
 			return false;
 		}
 
+		if (choice == 3)
+		{
+			req.setType(Request::type::STATS);
+			return true;
+		}
+
 		std::cout << "Key:\n";
 		std::cin >> key;
 		req.setKey(key);
@@ -122,14 +128,9 @@ private:
 		{
 			req.setType(Request::type::GET);
 		}
-		else
-		{
-			req.setType(Request::type::STATS);
-		}
 
 		return true;
 	}
-
 	tcp::socket socket_;
 	boost::asio::io_service& io_service_;
 	boost::asio::streambuf readBuf;
